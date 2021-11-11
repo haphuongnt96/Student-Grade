@@ -1,0 +1,17 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+
+  db:
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_DATABASE: phedb
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_USER: phedra
+      MYSQL_PASSWORD: 123456
+    ports: 
+      - 3306:3306
+
