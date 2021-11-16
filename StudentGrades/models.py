@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 class Student(models.Model):
     student_name = models.CharField(max_length=255)
-    email = models.EmailField( max_length=254)
+    email = models.EmailField(max_length=255)
     mobile_phone = models.CharField(max_length=12)
 
     def __str__(self):
