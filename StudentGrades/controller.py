@@ -29,8 +29,8 @@ class LRUCache:
         if key in self.hash_table:
             # Move node to head
             if self.head.key != key:
-                n = self.deleteNode(self.hash_table[key])
-                self.insert(n, n.key)
+                n = self.EvictDeleteNode(self.hash_table[key])
+                self.insert(n, key)
                 self.head = n
             return self.head.info
         return -1
@@ -45,17 +45,6 @@ class LRUCache:
         #     self.insert(n)
         # return node
 
-
-    def evict(self):
-        # Delete from hash table
-        del self.hash_table[self.tail.key]
-
-        # Evict least recently used cache
-        n = self.tail.next
-        self.tail.next = None
-        self.tail = n
-        self.tail.prev = None
-
     def insert(self, node, id):
         # Insert node to linked list head
         if not self.hash_table:
@@ -67,12 +56,23 @@ class LRUCache:
         self.hash_table[id] = node
         self.head.key = id
 
-    def deleteNode(self, node):
+    def EvictDeleteNode(self, node):
         # Unsert node from linked list
-        n1 = node.prev
-        n2 = node.next
-        n1.next = n2
-        n2.prev = n1
+    
+        if node == self.tail:
+            # Delete from hash table
+            del self.hash_table[self.tail.key]
+
+            # Evict least recently used cache
+            n = self.tail.next
+            self.tail.next = None
+            self.tail = n
+            self.tail.prev = None
+        else:
+            n1 = node.prev
+            n2 = node.next
+            n1.next = n2
+            n2.prev = n1
         return node
 
 cache = LRUCache()  #### Test Cache: get_one_student
@@ -97,7 +97,7 @@ def get_one_student(request: HttpRequest, id):
         cache_info = cache.get(id)
         if cache_info == -1: #If data has not been cached
             if len(cache.hash_table) >= cache.max_len:
-                cache.evict()
+                cache.EvictDeleteNode(cache.tail)
             #     Insert node to head
             data = query_student(id=id)
             # Check if data presents in db
@@ -112,6 +112,11 @@ def get_one_student(request: HttpRequest, id):
         print(f"cache.head: {cache.head}")
         print(f"cache.tail: {cache.tail}")
         print(f"cache.head.key: {cache.head.key}")
+        print(f"cache.tail.key: {cache.tail.key}")
+        n1 = cache.head
+        while n1:
+            print(n1.key)
+            n1 = n1.prev
         return HttpResponse(cache_info, content_type="application/json")
 
     
@@ -201,5 +206,3 @@ def grades_by_course(request: HttpRequest, id):
         new_grade = query_insert_grade(requestBody, midterm_weight, grade_average, course_id=id) 
         new_grade = serializers.serialize('json', [new_grade])
         return HttpResponse(new_grade, content_type="application/json", status = 201)
-        
-
