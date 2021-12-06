@@ -8,66 +8,77 @@ import json
 from django.db import models
 from django.http import JsonResponse
 
-class student_form:
-    def __init__(self, student_name: str, email: str, mobile_phone: str):
-        #Run validations to the received arguments
-        if not isinstance(student_name, str):
-            raise TypeError("Student name must be of type str")
-        elif not isinstance(email, str):
-            raise TypeError("Email must be of type str")
-        elif not isinstance(mobile_phone, str)
-            raise TypeError("Mobile phone must be of type str")
+#from StudentGrades.cache import 
 
-        # Assign to self object
-        self.student_name = str(student_name)
-        self.email = str(email)
-        self.mobile_phone = str(mobile_phone)
+###Caching###
+class Node:
+    def __init__(self, info):
+        self.info = info
+        self.next = None
+        self.prev = None
+        self.key = None
 
-class course_form:
-    def __init__(self, course_name: str, credit: int, midterm_exam_weight: float):
-        #Validate data types
-        if not isinstance(course_name, str):
-            raise TypeError("Course name must be of type str")
-        elif not isinstance(credit, int):
-            raise TypeError("Credit must be of type int")
-        elif not isinstance(midterm_exam_weight, float)
-            raise TypeError("midterm_exam_weight must be of type float")
+class LRUCache:
+    def __init__(self):
+        self.max_len = 5
+        self.hash_table = {}
+        self.tail = None
+        self.head = None
 
-        #Run validations to the received arguments
-        if midterm_exam_weight > 1 or midterm_exam_weight < 0:
-            raise Exception("Midterm weight must be between 0 and 1")
-        if credit < 0:
-            raise Exception("credit must be > 0")
+    def get(self, key):
+        if key in self.hash_table:
+            # Move node to head
+            if self.head.key != key:
+                n = self.deleteNode(self.hash_table[key])
+                self.insert(n, n.key)
+                self.head = n
+            return self.head.info
+        return -1
+            # return node
+        # else:
+        #     # Check condition to see if len(hash_table > len(max_len))
+        #     # Y --> Evict tail node and remove from hash_table
+        #     if len(self.hash_table) >= len(self.max_len):
+        #         self.evict()
+        #     # Insert node to head
+        #     n = Node(data)
+        #     self.insert(n)
+        # return node
 
-        # Assign to self object
-        self.course_name = str(course_name)
-        self.credit = int(credit)
-        self.midterm_exam_weight = float(midterm_exam_weight)
 
-class grade_form:
-    def __init__(self, student: int, course: int, midterm_exam_weight: float, midterm_exam: float, final_term_exam: float, grade_average: float):
-        if not isinstance(student, int):
-            raise TypeError("Student id must be of type int")
-        elif not isinstance(course, int):
-            raise TypeError("Course id must be of type int")
-        elif not isinstance(midterm_exam_weight, float)
-            raise TypeError("midterm_exam_weight must be of type float")
-        elif not isinstance(midterm_exam, float)
-            raise TypeError("midterm_exam must be of type float")
-        elif not isinstance(final_term_exam, float)
-            raise TypeError("final_term_exam must be of type float")
-        elif not isinstance(grade_average, float)
-            raise TypeError("grade_average must be of type float")
+    def evict(self):
+        # Delete from hash table
+        del self.hash_table[self.tail.key]
 
-        self.student_id = int(student)
-        self.course_id = int(course)
-        self.midterm_exam_weight = float(midterm_exam_weight)
-        self.midterm_exam = float(midterm_exam)
-        self.final_term_exam = float(final_term_exam)
-        self.grade_average = float(grade_average)
+        # Evict least recently used cache
+        n = self.tail.next
+        self.tail.next = None
+        self.tail = n
+        self.tail.prev = None
 
-def transform_incoming_data():
-    data = request.body.decode('utf-8')
+    def insert(self, node, id):
+        # Insert node to linked list head
+        if not self.hash_table:
+            self.head = self.tail = node
+        else:
+            self.head.next = node
+            node.prev = self.head
+            self.head = node
+        self.hash_table[id] = node
+        self.head.key = id
+
+    def deleteNode(self, node):
+        # Unsert node from linked list
+        n1 = node.prev
+        n2 = node.next
+        n1.next = n2
+        n2.prev = n1
+        return node
+
+cache = LRUCache()  #### Test Cache: get_one_student
+####Controller####
+def transform_incoming_data(requestBody):
+    data = requestBody.decode('utf-8')
     data_dict = json.loads(data)
     return data_dict
 
@@ -76,20 +87,34 @@ def get_all_students(request: HttpRequest):
         students = serializers.serialize('json', query_student())
         return HttpResponse(students, content_type="application/json")
     if request.method == 'POST':
-        requestBody = transform_incoming_data())
-        requestBody = student_form(requestBody['student_name'], requestBody['email'], requestBody['mobile_phone'])
+        requestBody = transform_incoming_data(request.body)
         new_student = query_insert_student(requestBody)
         new_student = serializers.serialize('json', [new_student])
         return HttpResponse(new_student, content_type="application/json", status = 201)
 
 def get_one_student(request: HttpRequest, id):
-    data = query_student(id=id)
-    if not data:
-        return HttpResponseNotFound(f"Student id {id} not found")
-
     if request.method == "GET":
-        student = serializers.serialize('json', data)
-        return HttpResponse(student, content_type="application/json")
+        cache_info = cache.get(id)
+        if cache_info == -1: #If data has not been cached
+            if len(cache.hash_table) >= cache.max_len:
+                cache.evict()
+            #     Insert node to head
+            data = query_student(id=id)
+            # Check if data presents in db
+            if not data:
+                return HttpResponseNotFound(f"Student id {id} not found")
+            student = serializers.serialize('json', data)
+            n = Node(student)
+            cache.insert(n, id)
+            cache_info = cache.head.info
+        print(f"cache_info: {cache_info}")
+        print(f"cache.hash_table: {cache.hash_table}")
+        print(f"cache.head: {cache.head}")
+        print(f"cache.tail: {cache.tail}")
+        print(f"cache.head.key: {cache.head.key}")
+        return HttpResponse(cache_info, content_type="application/json")
+
+    
 
     if request.method == 'PUT':
         requestBody = transform_incoming_data(request.body)
@@ -130,10 +155,7 @@ def get_all_courses(request: HttpRequest):
         courses = serializers.serialize('json', query_course())
         return HttpResponse(courses, content_type="application/json")
     if request.method == 'POST':
-        #requestBody = transform_incoming_data(request.body)
         requestBody = transform_incoming_data(request.body)
-
-        requestBody = course_v(requestBody['course_name'], requestBody['credit'], requestBody['midterm_exam_weight'])
         new_course = query_insert_course(requestBody)
         new_course = serializers.serialize('json', [new_course])
         return HttpResponse(new_course, content_type="application/json", status = 201)
@@ -180,3 +202,4 @@ def grades_by_course(request: HttpRequest, id):
         new_grade = serializers.serialize('json', [new_grade])
         return HttpResponse(new_grade, content_type="application/json", status = 201)
         
+

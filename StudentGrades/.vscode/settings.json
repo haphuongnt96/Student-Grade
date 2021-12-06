@@ -1,0 +1,9 @@
+{
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "./StudentGrades",
+        // "./inventory/serializers"
+        // "./inventory/views",
+        // "./inventory/sql",
+    ]
+}
