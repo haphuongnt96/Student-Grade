@@ -23,7 +23,7 @@ class Node:
 
 class LRUCache:
     def __init__(self):
-        self.max_len = 5
+        self.max_len = 3
         self.hash_table = {}
         self.tail = None
         self.head = None
@@ -38,7 +38,7 @@ class LRUCache:
             return self.head.info
         return -1
 
-    def insert(self, node, id):
+    def insert(self, node, key):
         # Insert node to linked list head
         if not self.hash_table:
             self.head = self.tail = node
@@ -46,8 +46,8 @@ class LRUCache:
             self.head.prev = node
             node.next = self.head
             self.head = node
-        self.hash_table[id] = node
-        self.head.key = id
+        self.hash_table[key] = node
+        self.head.key = key
 
     def EvictNode(self, node):
         # Unsert node from linked list
@@ -70,9 +70,11 @@ class LRUCache:
 
 cache = LRUCache()  #### Test Cache: get_one_student
 
-
+# def hash_function()
 def LRUDecorator(func):
     def wrapper(request, *args, **kwargs):
+        # for kwarg, value in kwargs:
+        #     print (kwarg,value)
         cache_info = cache.get(kwargs["id"])
         if cache_info == -1: #If data has not been cached
             if len(cache.hash_table) >= cache.max_len:
@@ -81,15 +83,17 @@ def LRUDecorator(func):
             n = Node(data)
             cache.insert(n, kwargs["id"])
             cache_info = cache.head.info
-        print(f"cache.hash_table: {cache.hash_table}")
-        print(f"cache.head: {cache.head}")
-        print(f"cache.tail: {cache.tail}")
-        print(f"cache.head.key: {cache.head.key}")
-        print(f"cache.tail.key: {cache.tail.key}")
-        n1 = cache.head
-        while n1:
-            print(n1.key)   
-            n1 = n1.next
+        
+        print(cache_info)
+        # print(f"cache.hash_table: {cache.hash_table}")
+        # print(f"cache.head: {cache.head}")
+        # print(f"cache.tail: {cache.tail}")
+        # print(f"cache.head.key: {cache.head.key}")
+        # print(f"cache.tail.key: {cache.tail.key}")
+        # n1 = cache.head
+        # while n1:
+        #     print(n1.key)   
+        #     n1 = n1.next
         return HttpResponse(cache_info, content_type="application/json")
     return wrapper
 
@@ -128,12 +132,12 @@ def get_all_students(request: HttpRequest):
 
 
 @LRUDecorator
-def get_one_student(request: HttpRequest, id):
+def get_one_student(request: HttpRequest, student_id):
     if request.method == "GET":
-        data = query_student(id)
+        data = query_student(student_id)
             # Check if data presents in db
         if not data:
-            return HttpResponseNotFound(f"Student id {id} not found")
+            return HttpResponseNotFound(f"Student id {student_id} not found")
         student = serializers.serialize('json', data)
         return student
 
